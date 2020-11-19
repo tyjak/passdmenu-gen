@@ -33,7 +33,7 @@ def check_output(args):
     return output
 
 
-def dmenu(choices, args=[], path=DMENU):
+def dmenu(choices, args=[], pass_generate=False, path=DMENU):
     """
     Displays a menu with the given choices by executing dmenu
     with the provided list of arguments. Returns the selected choice
@@ -53,7 +53,7 @@ def dmenu(choices, args=[], path=DMENU):
               file=sys.stderr)
         sys.exit(1)
     choice = choice.decode('utf-8').rstrip()
-    return choice if choice in choices else None
+    return choice if choice in choices or choice and pass_generate else None
 
 
 def collect_choices(store, regex=None):
@@ -92,7 +92,7 @@ def xdotool(entries, press_return, delay=None, window_id=None):
                                 universal_newlines=True)
 
 
-def get_pass_output(gpg_file, path=PASS, store=STORE):
+def get_pass_output(gpg_file, path=PASS, store=STORE, pass_generate=False, pass_opts=[]):
     environ = os.environ.copy()
     environ["PASSWORD_STORE_DIR"] = store
     passp = subprocess.Popen([path, gpg_file], env=environ,
@@ -100,10 +100,44 @@ def get_pass_output(gpg_file, path=PASS, store=STORE):
                              stdout=subprocess.PIPE)
     output, err = passp.communicate()
     if passp.returncode != 0:
-        print("pass returned {} and error:\n{}".format(
-            passp.returncode, err.decode('utf-8')), file=sys.stderr)
-        sys.exit(1)
+        if err.decode('utf-8').rstrip() == 'Error: {} is not in the password store.'.format(gpg_file):
+            output = generate_password(gpg_file, path=PASS, store=STORE, pass_opts=pass_opts)
+        else:
+            print("pass returned {} and error:\n{}".format(
+                passp.returncode, err.decode('utf-8')), file=sys.stderr)
+            sys.exit(1)
     return output.decode('utf-8').split('\n')
+
+
+def generate_password(new_pass_args, path=PASS, store=STORE, pass_opts=[]):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    environ = os.environ.copy()
+    environ["PASSWORD_STORE_DIR"] = store
+
+    if '#' in new_pass_args:
+        password_name, password_login = new_pass_args.split('#')
+    else:
+        password_login = ''
+        password_name = new_pass_args
+
+    # generate password
+    passp = subprocess.Popen([path, 'generate'] + pass_opts + [password_name], env=environ,
+                             stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE)
+    output, err = passp.communicate()
+    password = ansi_escape.sub('', output.decode('utf-8').rstrip().split('\n')[-1])
+
+    # insert login
+    if password_login != '' and password:
+        passp = subprocess.Popen([path, 'insert', '-m', password_name],
+                                 env=environ,
+                                 stdin=subprocess.PIPE,
+                                 stderr=subprocess.PIPE,
+                                 stdout=subprocess.PIPE)
+        _input=bytes(str.encode("\n".join([password,'login: '+password_login]),'UTF-8'))
+        output, err = passp.communicate(input=_input)
+
+    return "\n".join([password,password_login]).encode('UTF-8')
 
 def get_user_second_line(pass_output):
     userline = pass_output[1].split()
@@ -209,6 +243,12 @@ def main():
                               'forwarded as parameters.'
                               'The command is executed in addition to and '
                               'after specified -t, -c options are handled.'))
+    parser.add_argument('-g', '--generate', dest="pass_generate", action='store_true',
+                        help=('Generate a password if not existing. To add '
+                              'a user enter the password name follow by a dash '
+                              'and by the username i.e. folder/pass#username.'))
+    parser.add_argument('-G', '--generate-no-symbols', dest="pass_generate_no_symbols", action='store_true',
+                        help=('Generate a password same as -g except with no symbols.'))
 
     split_args = [[]]
     curr_args = split_args[0]
@@ -265,6 +305,11 @@ def main():
             prompt += (("," if prompt != "" else "") +
                        os.path.basename(args.execute))
 
+    pass_opts = []
+    if args.pass_generate_no_symbols:
+        args.pass_generate = True
+        pass_opts = ['--no-symbols']
+
     # make sure the password store exists
     if not os.path.isdir(args.store):
         print("The password store location, " + args.store +
@@ -289,11 +334,11 @@ def main():
         window_id = check_output([XDOTOOL, 'getactivewindow'])[0]
 
     choices = collect_choices(args.store, args.filter)
-    choice = dmenu(choices, dmenu_opts, args.dmenu_bin)
+    choice = dmenu(choices, dmenu_opts, args.pass_generate, args.dmenu_bin)
     # Check if user aborted
     if choice is None:
         sys.exit(0)
-    pass_output = get_pass_output(choice, args.pass_bin, args.store)
+    pass_output = get_pass_output(choice, args.pass_bin, args.store, args.pass_generate, pass_opts)
     user, pw = get_user_pw(pass_output, args.get_user, choice)
 
     info = []

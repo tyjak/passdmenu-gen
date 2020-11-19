@@ -19,7 +19,7 @@ Help:
     A dmenu frontend to pass. All passed arguments not listed below, are passed to
     dmenu. If you need to pass arguments to dmenu which are in conflict with the
     options below, place them after --. Requires xclip in default 'copy' mode.
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       -c, --copy            Use xclip to copy the username and/or password into
@@ -60,3 +60,8 @@ Help:
                             and -f are forwarded as parameters.The command is
                             executed in addition to and after specified -t, -c
                             options are handled.
+      -g, --generate        Generate a password if not existing. To add a user
+                            enter the password name follow by a dash and by the
+                            username i.e. folder/pass#username.
+      -G, --generate-no-symbols
+                            Generate a password same as -g except with no symbols.
