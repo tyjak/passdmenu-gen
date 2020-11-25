@@ -1,21 +1,24 @@
 passdmenu
 =========
 
+> This a fork of [passdmenu](https://github.com/klaasb/passdmenu) by [Klaas Boesche](https://github.com/klaasb)
+> with addition of ability to generate a password from the dmenu
+
 A small python frontend to [pass](http://www.passwordstore.org) wrapping [dmenu](http://tools.suckless.org/dmenu/).
 
 Currently only tested with Python 3.4.
 
 Example usage as [i3](http://i3wm.org) keybindings:
 
-    bindsym $mod+Shift+i exec passdmenu.py -P
-    bindsym $mod+Mod1+i exec passdmenu.py -uPt
+    bindsym $mod+x exec passdmenu.py -G -x s -P --type -r -D ~/.local/bin/mypassdmenu
+    bindsym $mod+Shift+x exec passdmenu.py -G -u -x p,s -P --type -r -D ~/.local/bin/mypassdmenu
 
 Help:
 
     usage: passdmenu.py [-h] [-c] [-t] [-r] [-u [GET_USER]] [-P] [-s STORE]
                         [-d XDO_DELAY] [-f FILTER] [-B PASS_BIN] [-D DMENU_BIN]
-                        [-x XSEL] [-e EXECUTE]
-    
+                        [-x XSEL] [-e EXECUTE] [-g] [-G]
+
     A dmenu frontend to pass. All passed arguments not listed below, are passed to
     dmenu. If you need to pass arguments to dmenu which are in conflict with the
     options below, place them after --. Requires xclip in default 'copy' mode.
