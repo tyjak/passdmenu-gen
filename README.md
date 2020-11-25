@@ -8,7 +8,7 @@ A small python frontend to [pass](http://www.passwordstore.org) wrapping [dmenu]
 
 ![screencast demo](./passdmenu-demo.gif)
 
-Currently only tested with Python 3.4.
+Currently only tested with Python 3.8.
 
 Example usage as [i3](http://i3wm.org) keybindings:
 
